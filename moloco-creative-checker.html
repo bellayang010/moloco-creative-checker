@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Moloco Creative Checker · Moloco Internal</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+:root {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface2: #f0f1f5;
+  --border: #e2e4ea;
+  --border-light: #c8cbda;
+  --text: #1a1b2e;
+  --text-muted: #6b6f8a;
+  --text-dim: #a0a4bc;
+  --accent: #5b52e8;
+  --accent-glow: rgba(91,82,232,0.1);
+  --green: #16a34a; --green-bg: rgba(22,163,74,0.07);
+  --red: #dc2626;   --red-bg: rgba(220,38,38,0.07);
+  --amber: #d97706; --amber-bg: rgba(217,119,6,0.07);
+  --purple: #7c3aed;--purple-bg: rgba(124,58,237,0.07);
+  --blue: #2563eb;  --blue-bg: rgba(37,99,235,0.07);
+}
+
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.6;}
+.app{display:grid;grid-template-columns:340px 1fr;min-height:100vh;}
+
+/* ── Sidebar ── */
+.sidebar{background:var(--surface);border-right:1px solid var(--border);padding:22px;display:flex;flex-direction:column;gap:20px;position:sticky;top:0;height:100vh;overflow-y:auto;box-shadow:2px 0 8px rgba(0,0,0,0.04);}
+.logo{display:flex;align-items:center;gap:10px;padding-bottom:16px;border-bottom:1px solid var(--border);}
+.logo-icon{width:30px;height:30px;background:var(--accent);border-radius:7px;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;color:#fff;}
+.logo-text{font-size:12px;font-weight:600;letter-spacing:.06em;}
+.logo-sub{font-size:10px;color:var(--text-muted);font-family:'IBM Plex Mono',monospace;}
+
+/* How-to box */
+.howto{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:11.5px;color:var(--text-muted);line-height:1.85;}
+.howto strong{color:var(--text);font-weight:600;display:block;margin-bottom:4px;}
+.howto ol{padding-left:16px;}
+.howto li{margin-bottom:2px;}
+.howto code{font-family:'IBM Plex Mono',monospace;color:var(--accent);font-size:10.5px;background:var(--accent-glow);padding:1px 5px;border-radius:3px;}
+
+.form-group{display:flex;flex-direction:column;gap:5px;}
+.form-label{font-size:10px;font-weight:700;letter-spacing:.09em;color:var(--text-muted);text-transform:uppercase;}
+input,select,textarea{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 11px;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:12px;outline:none;transition:border-color .2s;width:100%;}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);}
+input::placeholder,textarea::placeholder{color:var(--text-dim);}
+textarea{resize:vertical;min-height:72px;line-height:1.5;}
+
+.token-row{display:flex;gap:6px;align-items:flex-end;}
+.token-row input{flex:1;}
+.paste-hint{font-size:10px;color:var(--text-dim);margin-top:3px;}
+
+.btn{display:flex;align-items:center;justify-content:center;gap:7px;padding:10px 14px;border-radius:7px;font-size:13px;font-weight:600;font-family:'IBM Plex Sans',sans-serif;cursor:pointer;border:none;transition:all .15s;width:100%;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-primary:hover{opacity:.88;transform:translateY(-1px);}
+.btn-primary:active{transform:translateY(0);}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+.btn-ghost{background:transparent;color:var(--text-muted);border:1px solid var(--border);}
+.btn-ghost:hover{border-color:var(--border-light);color:var(--text);}
+.btn-sm{padding:7px 12px;font-size:12px;width:auto;}
+
+.status-bar{padding:9px 11px;border-radius:6px;font-size:11px;font-family:'IBM Plex Mono',monospace;background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);min-height:36px;display:flex;align-items:center;gap:8px;margin-top:auto;}
+.status-bar.loading{color:var(--accent);border-color:var(--accent);}
+.status-bar.error{color:var(--red);border-color:var(--red);}
+.status-bar.success{color:var(--green);border-color:var(--green);}
+.spinner{width:10px;height:10px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── Main ── */
+.main{background:var(--bg);overflow-y:auto;}
+.main-header{padding:26px 30px 0;border-bottom:1px solid var(--border);margin-bottom:22px;}
+.main-title{font-size:19px;font-weight:600;margin-bottom:3px;}
+.main-sub{font-size:12px;color:var(--text-muted);margin-bottom:18px;}
+
+.stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:0 30px 20px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:13px 15px;box-shadow:0 1px 3px rgba(0,0,0,0.05);}
+.stat-label{font-size:10px;color:var(--text-muted);font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-bottom:5px;}
+.stat-value{font-size:24px;font-weight:600;font-family:'IBM Plex Mono',monospace;}
+.stat-value.green{color:var(--green);}
+.stat-value.red{color:var(--red);}
+.stat-value.amber{color:var(--amber);}
+.stat-value.purple{color:var(--purple);}
+.stat-value.blue{color:var(--blue);}
+
+.app-info-bar{display:flex;align-items:center;gap:10px;padding:0 30px 18px;flex-wrap:wrap;}
+.app-pill{display:flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:5px 12px 5px 7px;font-size:11px;}
+.app-icon{width:18px;height:18px;background:var(--accent-glow);border:1px solid var(--accent);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--accent);font-weight:700;}
+
+.filter-bar{display:flex;gap:6px;align-items:center;padding:0 30px 16px;flex-wrap:wrap;}
+.filter-label{font-size:11px;color:var(--text-muted);}
+.filter-btn{padding:4px 11px;border-radius:5px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-muted);transition:all .15s;font-family:'IBM Plex Sans',sans-serif;}
+.filter-btn:hover{border-color:var(--border-light);color:var(--text);}
+.filter-btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+
+.campaigns-container{padding:0 30px 40px;display:flex;flex-direction:column;gap:12px;}
+
+/* Campaign card */
+.campaign-card{background:var(--surface);border:1px solid var(--border);border-radius:11px;overflow:hidden;transition:border-color .2s;box-shadow:0 1px 4px rgba(0,0,0,0.04);}
+.campaign-card:hover{border-color:var(--border-light);}
+.campaign-card.has-issues{border-color:rgba(220,38,38,.25);}
+.campaign-card.has-premium{border-left:3px solid var(--purple);}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+.campaign-card{animation:fadeIn .2s ease both;}
+
+.campaign-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;cursor:pointer;user-select:none;}
+.campaign-header:hover{background:var(--surface2);}
+.campaign-meta{display:flex;align-items:center;gap:11px;}
+.c-status{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 5px var(--green);flex-shrink:0;}
+.c-status.paused{background:var(--amber);box-shadow:0 0 5px var(--amber);}
+.c-status.stopped{background:var(--text-dim);box-shadow:none;}
+.c-name{font-weight:600;font-size:14px;}
+.c-id{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-dim);}
+.c-badges{display:flex;gap:5px;align-items:center;}
+
+.badge{padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600;letter-spacing:.02em;}
+.badge-ok{background:var(--green-bg);color:var(--green);border:1px solid rgba(22,163,74,.2);}
+.badge-warn{background:var(--red-bg);color:var(--red);border:1px solid rgba(220,38,38,.2);}
+.badge-premium{background:var(--purple-bg);color:var(--purple);border:1px solid rgba(124,58,237,.2);}
+.badge-type{background:var(--surface2);color:var(--text-muted);border:1px solid var(--border);}
+
+.chevron{font-size:11px;color:var(--text-dim);transition:transform .2s;}
+.chevron.open{transform:rotate(180deg);}
+
+.campaign-body{display:none;border-top:1px solid var(--border);}
+.campaign-body.open{display:block;}
+
+.creative-group{padding:14px 18px;border-bottom:1px solid var(--border);}
+.creative-group:last-of-type{border-bottom:none;}
+.cg-header{display:flex;align-items:center;gap:9px;margin-bottom:10px;}
+.cg-tag{font-size:10px;padding:2px 6px;background:var(--blue-bg);color:var(--blue);border:1px solid rgba(37,99,235,.2);border-radius:3px;font-family:'IBM Plex Mono',monospace;font-weight:600;letter-spacing:.04em;}
+.cg-name{font-size:13px;color:var(--text-muted);font-weight:500;}
+
+.analysis-section{margin-bottom:12px;}
+.analysis-title{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:7px;display:flex;align-items:center;gap:8px;}
+.analysis-title::after{content:'';flex:1;height:1px;background:var(--border);}
+
+.sizes-grid{display:flex;flex-wrap:wrap;gap:5px;}
+.size-chip{padding:3px 9px;border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;display:flex;align-items:center;gap:5px;}
+.size-chip.have{background:var(--green-bg);color:var(--green);border:1px solid rgba(22,163,74,.2);}
+.size-chip.missing{background:var(--red-bg);color:var(--red);border:1px solid rgba(220,38,38,.2);}
+.size-chip.pm-have{background:var(--purple-bg);color:var(--purple);border:1px solid rgba(124,58,237,.2);}
+.size-chip.pm-miss{background:rgba(124,58,237,.03);color:var(--purple);border:1px dashed rgba(124,58,237,.35);}
+
+.dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+.dot.ok{background:var(--green);}
+.dot.miss{background:var(--red);}
+.dot.pm{background:var(--purple);}
+.dot.pm-miss{border:1.5px dashed var(--purple);}
+
+.gap-summary{padding:14px 18px;background:var(--surface2);}
+.note{font-size:11px;color:var(--text-dim);margin-top:7px;padding:6px 10px;background:var(--surface);border-radius:4px;border-left:2px solid var(--border-light);}
+
+.premium-section{background:rgba(124,58,237,.04);border:1px solid rgba(124,58,237,.15);border-radius:8px;padding:13px 15px;margin-top:12px;}
+.premium-header{display:flex;align-items:center;gap:7px;margin-bottom:11px;font-size:12px;font-weight:700;color:var(--purple);letter-spacing:.04em;}
+.pi-row{margin-bottom:9px;}
+.pi-name{font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:5px;display:flex;align-items:center;gap:6px;}
+.pi-name::before{content:'↳';color:var(--text-dim);}
+
+.divider{height:1px;background:var(--border);margin:12px 0;}
+
+/* Empty state */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 30px;gap:12px;color:var(--text-dim);text-align:center;}
+.empty-icon{width:60px;height:60px;border:1.5px dashed var(--border-light);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:6px;}
+.empty-title{font-size:16px;font-weight:600;color:var(--text-muted);}
+.empty-sub{font-size:12px;max-width:280px;line-height:1.9;}
+
+.section-sep{height:1px;background:var(--border);margin:12px 0;}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ══════════════════════ SIDEBAR ══════════════════════ -->
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-icon">M</div>
+    <div>
+      <div class="logo-text">CREATIVE CHECKER</div>
+      <div class="logo-sub">Moloco Internal Tool</div>
+    </div>
+  </div>
+
+  <!-- How to get token -->
+  <div class="howto">
+    <strong>如何获取 Bearer Token</strong>
+    <ol>
+      <li>登录 <code>ads.moloco.com</code></li>
+      <li>按 <code>F12</code> 打开 DevTools</li>
+      <li>点 <code>Network</code> 标签页</li>
+      <li>页面任意操作触发请求</li>
+      <li>点任意 API 请求 → Headers</li>
+      <li>复制 <code>Authorization: Bearer ...</code> 后面的值</li>
+    </ol>
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">Bearer Token</label>
+    <textarea id="bearerToken" placeholder="粘贴 token，以 eyJ 开头..." rows="3"></textarea>
+    <span class="paste-hint">Token 有效期 16 小时，过期后重新复制即可</span>
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">Ad Account ID</label>
+    <input type="text" id="adAccountId" placeholder="acc_xxxxxxxxxx" />
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">App Bundle ID</label>
+    <input type="text" id="appBundle" placeholder="com.example.app" />
+  </div>
+
+  <button class="btn btn-primary" id="scanBtn" onclick="startScan()">▶ 开始扫描</button>
+  <button class="btn btn-ghost" onclick="loadDemo()">◈ 加载演示数据</button>
+
+  <div class="status-bar" id="statusBar">
+    <span>就绪 — 粘贴 token 后开始</span>
+  </div>
+</aside>
+
+<!-- ══════════════════════ MAIN ══════════════════════ -->
+<main class="main" id="mainArea">
+
+  <div class="empty-state" id="emptyState">
+    <div class="empty-icon">⊡</div>
+    <div class="empty-title">尚未扫描</div>
+    <div class="empty-sub">从 Moloco 后台 DevTools 复制 Bearer Token，填入 Ad Account ID 和 App Bundle 后点击扫描。</div>
+  </div>
+
+  <div id="resultsArea" style="display:none;">
+    <div class="main-header">
+      <div class="main-title" id="appTitle">Campaign 素材检查报告</div>
+      <div class="main-sub" id="appSubtitle"></div>
+    </div>
+    <div class="stats-row" id="statsRow"></div>
+    <div class="app-info-bar" id="appInfoBar"></div>
+    <div class="filter-bar">
+      <span class="filter-label">筛选：</span>
+      <button class="filter-btn active" onclick="filterCampaigns('all',this)">全部</button>
+      <button class="filter-btn" onclick="filterCampaigns('missing',this)">有缺失</button>
+      <button class="filter-btn" onclick="filterCampaigns('premium',this)">Premium 缺失</button>
+      <button class="filter-btn" onclick="filterCampaigns('ok',this)">完整</button>
+    </div>
+    <div class="campaigns-container" id="campaignsContainer"></div>
+  </div>
+
+</main>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// MOLOCO SPECS
+// ═══════════════════════════════════════════════════════
+const SPECS = {
+  image: {
+    recommended: ['300x250','320x480','320x50','728x90'],
+    core: ['300x250','320x480','320x50','728x90','1024x768','300x50','468x60','480x320','768x1024','375x667'],
+    android_extra: ['320x100','320x48','360x56'],
+    ios_extra: ['414x65']
+  },
+  video: {
+    orientations: ['portrait','landscape'],
+    note: '建议覆盖 16–30s / 31–60s / 61–120s 三个时长段，每个视频需配 End Card 图片'
+  },
+  native: {
+    image: ['1200x627','320x180'],
+    kr_only: ['1200x600']
+  },
+  premium: {
+    'X (Twitter)': {
+      video_orientations: ['portrait','landscape','square'],
+      note: '需 portrait + landscape + square 三方向'
+    },
+    'Samsung': {
+      native_video: ['portrait','landscape'],
+      note: '参考 Samsung 专属 Native 视频规范'
+    },
+    'Kakao (KR)': {
+      image: ['300x250','320x50','728x90','1200x600'],
+      note: '1200x600 Bizboard 仅限韩国'
+    },
+    'ADGENERATION (JP)': {
+      native_image: ['1200x627','320x180'],
+      note: '日本市场必须备 Native 素材'
+    },
+    'FIVE (JP)': {
+      native_image: ['1200x627','320x180'],
+      note: '日本本地 exchange'
+    },
+    'FLUCT (JP)': {
+      native_image: ['1200x627','320x180'],
+      note: '日本本地 exchange'
+    }
+  }
+};
+
+// ═══════════════════════════════════════════════════════
+// API CALLS  (Bearer token, no API key needed)
+// ═══════════════════════════════════════════════════════
+const BASE = 'https://api.moloco.cloud/cm/v1';
+
+async function apiFetch(path, token) {
+  const resp = await fetch(BASE + path, {
+    headers: { 'Authorization': 'Bearer ' + token.trim() }
+  });
+  if (!resp.ok) {
+    const txt = await resp.text().catch(() => '');
+    throw new Error(`API ${resp.status}: ${txt.slice(0,120)}`);
+  }
+  return resp.json();
+}
+
+async function listProducts(token, accountId) {
+  const data = await apiFetch(`/products?ad_account_id=${encodeURIComponent(accountId)}`, token);
+  return data.products || [];
+}
+
+async function listCampaigns(token, accountId, productId) {
+  const data = await apiFetch(`/campaigns?ad_account_id=${encodeURIComponent(accountId)}&product_id=${encodeURIComponent(productId)}`, token);
+  return data.campaigns || [];
+}
+
+async function listCreativeGroups(token, accountId, productId) {
+  const data = await apiFetch(`/creative_groups?ad_account_id=${encodeURIComponent(accountId)}&product_id=${encodeURIComponent(productId)}`, token);
+  return data.creative_groups || [];
+}
+
+async function listCreatives(token, accountId, productId) {
+  const data = await apiFetch(`/creatives?ad_account_id=${encodeURIComponent(accountId)}&product_id=${encodeURIComponent(productId)}`, token);
+  return data.creatives || [];
+}
+
+// ═══════════════════════════════════════════════════════
+// ANALYSIS
+// ═══════════════════════════════════════════════════════
+function analyzeCreatives(creatives) {
+  const images = [], videos = [], natives = [];
+  creatives.forEach(c => {
+    const t = (c.type||'').toUpperCase();
+    if (t === 'IMAGE' && c.image) {
+      images.push(`${c.image.width}x${c.image.height}`);
+    } else if (t === 'VIDEO' && c.video) {
+      const w = c.video.width, h = c.video.height;
+      if (w && h) videos.push(h > w ? 'portrait' : w > h ? 'landscape' : 'square');
+    } else if (t === 'NATIVE_IMAGE') {
+      const img = c.native_image?.main_image || c.native_image || {};
+      if (img.width && img.height) natives.push(`${img.width}x${img.height}`);
+    }
+  });
+
+  const uImg = [...new Set(images)];
+  const uVid = [...new Set(videos)];
+  const uNat = [...new Set(natives)];
+
+  const missingCore  = SPECS.image.recommended.filter(s => !uImg.includes(s));
+  const missingVideo = SPECS.video.orientations.filter(v => !uVid.includes(v));
+  const missingNative= SPECS.native.image.filter(n => !uNat.includes(n));
+
+  const premiumGaps = {};
+  Object.entries(SPECS.premium).forEach(([name, spec]) => {
+    const gaps = [];
+    (spec.image||[]).forEach(s => { if (!uImg.includes(s)) gaps.push({type:'image',size:s}); });
+    (spec.video_orientations||[]).forEach(v => { if (!uVid.includes(v)) gaps.push({type:'video',size:v}); });
+    (spec.native_image||[]).forEach(n => { if (!uNat.includes(n)) gaps.push({type:'native',size:n}); });
+    (spec.native_video||[]).forEach(v => { if (!uVid.includes(v)) gaps.push({type:'native_video',size:v}); });
+    premiumGaps[name] = { gaps, note: spec.note };
+  });
+
+  const totalPremiumMissing = Object.values(premiumGaps).reduce((a,p) => a + p.gaps.length, 0);
+
+  return {
+    images: uImg, videos: uVid, natives: uNat,
+    missingCore, missingVideo, missingNative,
+    premiumGaps, totalPremiumMissing,
+    hasCoreIssues: missingCore.length + missingVideo.length > 0,
+    hasPremiumIssues: totalPremiumMissing > 0
+  };
+}
+
+// ═══════════════════════════════════════════════════════
+// SCAN
+// ═══════════════════════════════════════════════════════
+async function startScan() {
+  const token     = document.getElementById('bearerToken').value.trim();
+  const accountId = document.getElementById('adAccountId').value.trim();
+  const bundle    = document.getElementById('appBundle').value.trim();
+
+  if (!token || !accountId || !bundle) {
+    setStatus('error', '请填写所有字段'); return;
+  }
+
+  const btn = document.getElementById('scanBtn');
+  btn.disabled = true;
+
+  try {
+    setStatus('loading', '查找 App...');
+    const products = await listProducts(token, accountId);
+    const product = products.find(p =>
+      (p.bundle_id||'').toLowerCase() === bundle.toLowerCase() ||
+      (p.package_name||'').toLowerCase() === bundle.toLowerCase() ||
+      (p.id||'').toLowerCase() === bundle.toLowerCase()
+    );
+    if (!product) throw new Error(`未找到 bundle: ${bundle}，请检查 Bundle ID 是否正确`);
+
+    setStatus('loading', '拉取 Campaigns...');
+    const campaigns = await listCampaigns(token, accountId, product.id);
+    if (!campaigns.length) throw new Error('该 App 下没有找到 Campaign');
+
+    setStatus('loading', `拉取 Creative Groups & Creatives... (${campaigns.length} campaigns)`);
+    const [allCGs, allCreatives] = await Promise.all([
+      listCreativeGroups(token, accountId, product.id),
+      listCreatives(token, accountId, product.id)
+    ]);
+
+    // Build maps
+    const creativeMap = {};
+    allCreatives.forEach(c => { creativeMap[c.id] = c; });
+    const cgMap = {};
+    allCGs.forEach(cg => {
+      cgMap[cg.id] = { ...cg, resolvedCreatives: (cg.creative_ids||[]).map(id => creativeMap[id]).filter(Boolean) };
+    });
+
+    // Build campaign data
+    const campaignData = campaigns.map(camp => {
+      const cgIds = new Set();
+      (camp.ad_groups||[]).forEach(ag => (ag.creative_group_ids||[]).forEach(id => cgIds.add(id)));
+      const cgs = [...cgIds].map(id => cgMap[id]).filter(Boolean);
+      const allCC = cgs.flatMap(cg => cg.resolvedCreatives);
+      return {
+        id: camp.id,
+        name: camp.title || camp.name || camp.id,
+        status: camp.enabling_state || camp.status || 'ENABLED',
+        type: camp.campaign_type || camp.type || '—',
+        country: (camp.target_countries||[]).join(', ') || '—',
+        os: camp.device_os || '—',
+        creativeGroups: cgs,
+        analysis: analyzeCreatives(allCC)
+      };
+    });
+
+    renderResults(accountId, bundle, product.title || bundle, campaignData);
+    setStatus('success', `✓ 完成 — ${campaigns.length} 个 campaign`);
+  } catch(err) {
+    setStatus('error', err.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// DEMO DATA
+// ═══════════════════════════════════════════════════════
+function loadDemo() {
+  const raw = [
+    { id:'cmp_001', name:'BTCC_iOS_UA_KOR_CPI', status:'ENABLED', type:'USER_ACQUISITION', country:'KR', os:'IOS',
+      creatives:[
+        {type:'IMAGE',image:{width:300,height:250}},{type:'IMAGE',image:{width:320,height:50}},
+        {type:'VIDEO',video:{width:720,height:1280}},{type:'NATIVE_IMAGE',native_image:{main_image:{width:1200,height:627}}}
+      ]
+    },
+    { id:'cmp_002', name:'BTCC_Android_UA_Global_ROAS', status:'ENABLED', type:'USER_ACQUISITION', country:'US,JP,SG', os:'ANDROID',
+      creatives:[
+        {type:'IMAGE',image:{width:300,height:250}},{type:'IMAGE',image:{width:320,height:480}},
+        {type:'IMAGE',image:{width:320,height:50}},{type:'IMAGE',image:{width:728,height:90}},
+        {type:'VIDEO',video:{width:720,height:1280}},{type:'VIDEO',video:{width:1280,height:720}},
+        {type:'NATIVE_IMAGE',native_image:{main_image:{width:1200,height:627}}},
+        {type:'NATIVE_IMAGE',native_image:{main_image:{width:320,height:180}}}
+      ]
+    },
+    { id:'cmp_003', name:'BTCC_iOS_RE_US_CPC', status:'PAUSED', type:'RE_ENGAGEMENT', country:'US', os:'IOS',
+      creatives:[
+        {type:'IMAGE',image:{width:300,height:250}},{type:'IMAGE',image:{width:320,height:50}}
+      ]
+    },
+    { id:'cmp_004', name:'BTCC_Android_UA_JP_CPI', status:'ENABLED', type:'USER_ACQUISITION', country:'JP', os:'ANDROID',
+      creatives:[
+        {type:'IMAGE',image:{width:300,height:250}},{type:'IMAGE',image:{width:320,height:50}},
+        {type:'VIDEO',video:{width:720,height:1280}}
+      ]
+    },
+    { id:'cmp_005', name:'BTCC_iOS_UA_TW_CPI', status:'ENABLED', type:'USER_ACQUISITION', country:'TW', os:'IOS',
+      creatives:[
+        {type:'IMAGE',image:{width:300,height:250}},{type:'IMAGE',image:{width:320,height:480}},
+        {type:'IMAGE',image:{width:320,height:50}},{type:'IMAGE',image:{width:728,height:90}},
+        {type:'VIDEO',video:{width:720,height:1280}},{type:'VIDEO',video:{width:1280,height:720}},
+        {type:'VIDEO',video:{width:720,height:720}},
+        {type:'NATIVE_IMAGE',native_image:{main_image:{width:1200,height:627}}},
+        {type:'NATIVE_IMAGE',native_image:{main_image:{width:320,height:180}}}
+      ]
+    }
+  ];
+
+  const campaignData = raw.map(r => ({
+    ...r,
+    creativeGroups:[{id:'cg_demo',title:'Creative Group',resolvedCreatives:r.creatives}],
+    analysis: analyzeCreatives(r.creatives)
+  }));
+
+  document.getElementById('bearerToken').value = 'eyJdemo.token.here';
+  document.getElementById('adAccountId').value = 'acc_btcc_demo';
+  document.getElementById('appBundle').value = 'com.btcc.app';
+  renderResults('acc_btcc_demo','com.btcc.app','BTCC Exchange (Demo)', campaignData);
+  setStatus('success','✓ 演示数据已加载 — 5 个 campaigns');
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════
+function renderResults(accountId, bundle, appName, campaigns) {
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('resultsArea').style.display = 'block';
+  document.getElementById('appTitle').textContent = `${appName} — 素材覆盖检查`;
+  document.getElementById('appSubtitle').textContent = `${accountId} · ${bundle} · ${campaigns.length} campaigns · 扫描于 ${new Date().toLocaleString('zh-CN')}`;
+
+  const totalMissing  = campaigns.reduce((a,c) => a + c.analysis.missingCore.length + c.analysis.missingVideo.length, 0);
+  const totalPremium  = campaigns.reduce((a,c) => a + c.analysis.totalPremiumMissing, 0);
+  const okCount       = campaigns.filter(c => !c.analysis.hasCoreIssues && !c.analysis.hasPremiumIssues).length;
+  const issueCount    = campaigns.filter(c => c.analysis.hasCoreIssues).length;
+
+  document.getElementById('statsRow').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Campaigns</div><div class="stat-value blue">${campaigns.length}</div></div>
+    <div class="stat-card"><div class="stat-label">素材完整</div><div class="stat-value green">${okCount}</div></div>
+    <div class="stat-card"><div class="stat-label">有缺失</div><div class="stat-value red">${issueCount}</div></div>
+    <div class="stat-card"><div class="stat-label">Premium 缺失</div><div class="stat-value purple">${totalPremium}</div></div>
+    <div class="stat-card"><div class="stat-label">总缺失项</div><div class="stat-value amber">${totalMissing}</div></div>
+  `;
+
+  document.getElementById('appInfoBar').innerHTML = `
+    <div class="app-pill"><div class="app-icon">A</div><span>${appName}</span></div>
+    <div class="app-pill" style="font-family:'IBM Plex Mono',monospace;">${bundle}</div>
+  `;
+
+  const container = document.getElementById('campaignsContainer');
+  container.innerHTML = '';
+  campaigns.forEach((c, idx) => buildCampaignCard(c, idx, container));
+}
+
+function buildCampaignCard(c, idx, container) {
+  const a = c.analysis;
+  const missingTotal = a.missingCore.length + a.missingVideo.length + a.missingNative.length;
+
+  const card = document.createElement('div');
+  card.className = ['campaign-card', a.hasCoreIssues?'has-issues':'', a.hasPremiumIssues?'has-premium':''].filter(Boolean).join(' ');
+  card.style.animationDelay = `${idx*0.04}s`;
+  card.dataset.status  = a.hasCoreIssues ? 'missing' : 'ok';
+  card.dataset.premium = a.hasPremiumIssues ? 'yes' : 'no';
+
+  const statusClass  = c.status === 'ENABLED' ? '' : c.status === 'PAUSED' ? 'paused' : 'stopped';
+  const missBadge    = missingTotal === 0
+    ? `<span class="badge badge-ok">✓ 完整</span>`
+    : `<span class="badge badge-warn">缺 ${missingTotal} 项</span>`;
+  const premBadge    = a.hasPremiumIssues ? `<span class="badge badge-premium">Premium ⚠</span>` : '';
+  const typeLabel    = c.type.replace(/_/g,' ').toLowerCase();
+
+  card.innerHTML = `
+    <div class="campaign-header" onclick="toggleCard(this)">
+      <div class="campaign-meta">
+        <div class="c-status ${statusClass}"></div>
+        <div>
+          <div class="c-name">${c.name}</div>
+          <div class="c-id">${c.id} · ${c.country} · ${c.os}</div>
+        </div>
+      </div>
+      <div class="c-badges">
+        <span class="badge badge-type">${typeLabel}</span>
+        ${missBadge}${premBadge}
+        <span class="chevron">▾</span>
+      </div>
+    </div>
+    <div class="campaign-body">${buildCampaignBody(c)}</div>
+  `;
+  container.appendChild(card);
+}
+
+function buildCampaignBody(c) {
+  const a = c.analysis;
+  let h = '';
+
+  // ── Creative groups (what's uploaded) ──
+  c.creativeGroups.forEach(cg => {
+    const cgImages  = [...new Set(cg.resolvedCreatives.filter(x=>x.type==='IMAGE'&&x.image).map(x=>`${x.image.width}x${x.image.height}`))];
+    const cgVideos  = [...new Set(cg.resolvedCreatives.filter(x=>x.type==='VIDEO'&&x.video).map(x=>{ const w=x.video.width,hh=x.video.height; return hh>w?'portrait':w>hh?'landscape':'square'; }))];
+    const cgNatives = [...new Set(cg.resolvedCreatives.filter(x=>x.type==='NATIVE_IMAGE').map(x=>{ const img=x.native_image?.main_image||x.native_image||{}; return `${img.width}x${img.height}`; }))];
+
+    h += `<div class="creative-group">
+      <div class="cg-header">
+        <span class="cg-tag">CG</span>
+        <span class="cg-name">${cg.title||cg.id}</span>
+        <span style="font-size:11px;color:var(--text-dim);font-family:'IBM Plex Mono',monospace;">(${cg.resolvedCreatives.length} 个素材)</span>
+      </div>`;
+    if (cgImages.length)  h += sizeSection('图片', cgImages.map(s=>`<span class="size-chip have"><span class="dot ok"></span>${s}</span>`).join(''));
+    if (cgVideos.length)  h += sizeSection('视频', cgVideos.map(v=>`<span class="size-chip have"><span class="dot ok"></span>${v}</span>`).join(''));
+    if (cgNatives.length) h += sizeSection('Native', cgNatives.map(n=>`<span class="size-chip have"><span class="dot ok"></span>${n}</span>`).join(''));
+    h += `</div>`;
+  });
+
+  // ── Gap analysis ──
+  h += `<div class="gap-summary">
+    <div class="analysis-title">该 Campaign 整体缺失分析</div>`;
+
+  // Image
+  h += sizeSection('图片 — 核心推荐尺寸',
+    SPECS.image.recommended.map(s => {
+      const have = a.images.includes(s);
+      return `<span class="size-chip ${have?'have':'missing'}"><span class="dot ${have?'ok':'miss'}"></span>${s}${have?'':' ✗'}</span>`;
+    }).join('')
+  );
+  if (a.missingCore.length) h += `<div class="note">⚠ 缺少: ${a.missingCore.join(', ')}</div>`;
+
+  // Video
+  h += sizeSection('视频方向',
+    SPECS.video.orientations.map(v => {
+      const have = a.videos.includes(v);
+      return `<span class="size-chip ${have?'have':'missing'}"><span class="dot ${have?'ok':'miss'}"></span>${v}${have?'':' ✗'}</span>`;
+    }).join('')
+  );
+  if (a.missingVideo.length) h += `<div class="note">${SPECS.video.note}</div>`;
+
+  // Native
+  h += sizeSection('Native 图片',
+    SPECS.native.image.map(n => {
+      const have = a.natives.includes(n);
+      return `<span class="size-chip ${have?'have':'missing'}"><span class="dot ${have?'ok':'miss'}"></span>${n}${have?'':' ✗'}</span>`;
+    }).join('')
+  );
+
+  // ── Premium ──
+  h += `<div class="section-sep"></div>
+    <div class="premium-section">
+      <div class="premium-header">⭐ Premium Inventory 素材缺口（单独列出）</div>`;
+
+  Object.entries(a.premiumGaps).forEach(([name, {gaps, note}]) => {
+    const allOk = gaps.length === 0;
+    h += `<div class="pi-row">
+      <div class="pi-name">
+        ${name}
+        <span style="font-size:10px;color:var(--text-dim);">— ${note}</span>
+        ${allOk
+          ? `<span class="badge badge-ok" style="font-size:10px;">✓</span>`
+          : `<span class="badge badge-premium" style="font-size:10px;">缺 ${gaps.length} 项</span>`}
+      </div>`;
+    if (gaps.length) {
+      h += `<div class="sizes-grid">` + gaps.map(g =>
+        `<span class="size-chip pm-miss"><span class="dot pm-miss"></span>${g.size} <span style="opacity:.6;font-size:10px;">${g.type}</span></span>`
+      ).join('') + `</div>`;
+    }
+    h += `</div>`;
+  });
+
+  h += `</div></div>`;
+  return h;
+}
+
+function sizeSection(title, chipsHtml) {
+  return `<div class="analysis-section">
+    <div class="analysis-title">${title}</div>
+    <div class="sizes-grid">${chipsHtml}</div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════════════════
+function toggleCard(header) {
+  const body    = header.nextElementSibling;
+  const chevron = header.querySelector('.chevron');
+  const open    = body.classList.toggle('open');
+  chevron.classList.toggle('open', open);
+}
+
+function filterCampaigns(type, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.campaign-card').forEach(card => {
+    const show =
+      type === 'all'     ? true :
+      type === 'missing' ? card.dataset.status  === 'missing' :
+      type === 'premium' ? card.dataset.premium === 'yes' :
+      type === 'ok'      ? (card.dataset.status === 'ok' && card.dataset.premium === 'no') : true;
+    card.style.display = show ? '' : 'none';
+  });
+}
+
+function setStatus(type, msg) {
+  const el = document.getElementById('statusBar');
+  el.className = `status-bar ${type}`;
+  el.innerHTML = type === 'loading'
+    ? `<div class="spinner"></div><span>${msg}</span>`
+    : `<span>${msg}</span>`;
+}
+</script>
+</body>
+</html>
